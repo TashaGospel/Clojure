@@ -4,3 +4,5 @@
   [username]
   (swap! visitors conj username)
   (str "Hello, " username))
+
+(println (hello "me"))
