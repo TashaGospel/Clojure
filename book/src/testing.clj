@@ -1,7 +1,9 @@
 (ns testing
   (:require [clojure.string :as str])
   (:use [clojure.java.io :only (reader)])
-  (:import (java.io File)))
+  (:import (java.io File FileInputStream InputStreamReader BufferedReader
+                         FileOutputStream OutputStreamWriter BufferedWriter)
+           (java.net URL Socket)))
 
 (defn isSmall?
   "If number is less than 100, returns 'Yes', else 'No'"
@@ -105,3 +107,103 @@
   "Counts run of length 2 that are both heads."
   (partial count-runs 2 #(= :h %)))
 
+(defrecord Message [sender text])
+(def messages (ref ()))
+(def backup-agent (agent "output/messages-backup.clj"))
+
+(defn add-message [msg]
+  (dosync (alter messages conj msg)))
+
+(defn add-message-with-backup [msg]
+  (dosync
+    (let [snapshot (alter messages conj msg)]
+      (send-off backup-agent (fn [filename]
+                               (spit filename snapshot)
+                               filename))
+      snapshot)))
+
+; (defn make-reader [src]
+;   (-> (condp = (type src)
+;         java.io.InputStream src
+;         java.lang.String (FileInputStream. src)
+;         java.io.File (FileInputStream. src)
+;         java.net.Socket (.getInputStream src)
+;         java.net.URL (if (= "file" (.getProtocol src))
+;                        (-> src .getPath FileInputStream.)
+;                        (.openStream src)))
+;       InputStreamReader.
+;       BufferedReader.))
+
+; (defn make-writer [dst]
+;   (-> (condp = (type dst)
+;         java.io.OutputStream dst 
+;         java.lang.String (FileOutputStream. dst)
+;         java.io.File (FileOutputStream. dst)
+;         java.net.Socket (.getOutputStream dst)
+;         java.net.URL (if (= "file" (.getProtocol dst))
+;                        (-> dst .getPath FileOutputStream.)
+;                        (throw (IllegalArgumentException.
+;                                 "Can't write to non-file URL"))))
+;       OutputStreamWriter.
+;       BufferedWriter.))
+
+(defprotocol IOFactory
+  "A factory for things that write or read other things."
+  (make-writer [this] "Creates a BufferedWriter.")
+  (make-reader [this] "Creates a BufferedReader."))
+
+; extend, extend-type, extend-protocol all serves the same purpose,
+; and are functionally equivalent.
+; extend-type and extend-protocol are macros of extend with a cleaner syntax.
+; extend-type is useful for implementing new protocols for a type.
+; extend-protocol is useful for implementing a protocol to several types.
+(extend FileInputStream
+  IOFactory
+  {:make-writer
+   (fn [dst]
+     (throw (IllegalArgumentException. "Can't open as FileInputStream.")))
+   :make-reader
+   (fn [src]
+     (-> src InputStreamReader. BufferedReader.))})
+
+(extend FileOutputStream
+  IOFactory
+  {:make-writer
+   (fn [dst]
+     (-> dst OutputStreamWriter. BufferedWriter.))
+   :make-reader
+   (fn [src]
+     (throw (IllegalArgumentException. "Can't open as FileOutputStream.")))})
+
+(extend-type File
+  IOFactory
+  (make-writer [dst] (make-writer (FileOutputStream. dst)))
+  (make-reader [src] (make-reader (FileInputStream. src))))
+
+(extend-protocol IOFactory
+  Socket
+  (make-reader [src] (make-reader (.getInputStream src)))
+  (make-writer [dst] (make-writer (.getOutputStream dst)))
+  
+  URL
+  (make-reader [src] (make-reader (if (= "file" (.getProtocol src))
+                                    (-> src .getPath FileInputStream.)
+                                    (.openStream src))))
+  (make-writer [dst] (make-writer (if ( = "file" (.getProtocol dst))
+                                    (-> dst .getPath FileOutputStream.)
+                                    (throw (IllegalArgumentException.
+                                           "Can't read from non-file URL."))))))
+
+(defn gulp [src]
+  (let [sb (StringBuilder.)]
+    (with-open [reader (make-reader src)]
+      (loop [c (.read reader)]
+        (if (neg? c)
+          (str sb)
+          (do
+            (.append sb (char c))
+            (recur (.read reader))))))))
+
+(defn expectorate [dst content]
+  (with-open [writer (make-writer dst)]
+    (.write writer (str content))))
