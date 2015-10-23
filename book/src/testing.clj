@@ -56,7 +56,7 @@
   [n]
   (cond
     (= n 0) 0
-    (= n 1) 1 
+    (= n 1) 1
     :else (+ (bad-fibo (- n 1))
              (bad-fibo (- n 2)))))
 
@@ -95,7 +95,7 @@
              (rest coll)))))
 
 (def ^{:doc "Counts items matching a filter"}
-  count-if 
+  count-if
   (comp count filter))
 
 (defn count-runs
@@ -136,7 +136,7 @@
 
 ; (defn make-writer [dst]
 ;   (-> (condp = (type dst)
-;         java.io.OutputStream dst 
+;         java.io.OutputStream dst
 ;         java.lang.String (FileOutputStream. dst)
 ;         java.io.File (FileOutputStream. dst)
 ;         java.net.Socket (.getOutputStream dst)
@@ -184,7 +184,7 @@
   Socket
   (make-reader [src] (make-reader (.getInputStream src)))
   (make-writer [dst] (make-writer (.getOutputStream dst)))
-  
+
   URL
   (make-reader [src] (make-reader (if (= "file" (.getProtocol src))
                                     (-> src .getPath FileInputStream.)
@@ -207,3 +207,12 @@
 (defn expectorate [dst content]
   (with-open [writer (make-writer dst)]
     (.write writer (str content))))
+
+(defmacro chain
+  ([x form] `(. ~x ~form))
+  ([x form & more] `(chain (. ~x ~form) ~@more)))
+
+(defmacro bench [form]
+  `(let [start# (System/nanoTime)
+         result# ~form]
+     {:result result# :elapsed (- (System/nanoTime) start#)}))
