@@ -216,3 +216,58 @@
   `(let [start# (System/nanoTime)
          result# ~form]
      {:result result# :elapsed (- (System/nanoTime) start#)}))
+
+(defmulti my-print class)
+
+(defmethod my-print String [ob]
+  (. *out* write ob))
+
+(defmethod my-print nil [ob]
+  (. *out* write "nil"))
+
+(defmethod my-print Number [ob]
+  (. *out* write (.toString ob)))
+
+(defmethod my-print :default [ob]
+  (.write *out* "#<")
+  (.write *out* (. ob toString))
+  (.write *out* ">"))
+
+(defmethod my-print java.util.Collection [ob]
+  (.write *out* "(")
+  (.write *out* (str/join " " ob))
+  (.write *out* ")"))
+
+(defmethod my-print clojure.lang.IPersistentVector [ob]
+  (.write *out* "[")
+  (.write *out* (str/join " " ob))
+  (.write *out* "]"))
+
+(prefer-method my-print clojure.lang.IPersistentVector java.util.Collection)
+
+(defn my-println [ob]
+  (my-print ob)
+  (.write *out* "\n"))
+
+(defn class-available? [class-name]
+  (try
+    (. Class forName class-name) true
+    (catch ClassNotFoundException _ false)))
+
+(defn ^Long sum-to [^Long n]
+  (loop [i 1
+         res 0]
+    (if (= i n)
+      (+ res i)
+      (recur (inc i) (+ res i)))))
+
+(defn drill
+  "Returns a function which can drill level levels into a coll"
+  [f level]
+  (if (= level 1)
+    (partial apply f)
+    (partial apply (drill f (dec level)))))
+
+(multiply-by-3 4)
+
+(def multiply-by-3 (partial * 6))
