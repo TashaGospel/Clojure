@@ -267,7 +267,3 @@
   (if (= level 1)
     (partial apply f)
     (partial apply (drill f (dec level)))))
-
-(multiply-by-3 4)
-
-(def multiply-by-3 (partial * 6))
