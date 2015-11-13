@@ -70,3 +70,119 @@
 
 (defn qsort [coll]
   (sort-parts (list coll)))
+
+(def bearings [{:x  0 :y  1}    ; north
+               {:x  1 :y  0}    ; east
+               {:x  0 :y -1}    ; south
+               {:x -1 :y  0}])  ; west
+
+(defn bot [x y bearing-num]
+  {:coords [x y]
+   :bearing ([:north :east :south :west] bearing-num)
+   :forward (fn []
+              (bot (+ x (:x (bearings bearing-num)))
+                   (+ y (:y (bearings bearing-num)))
+                   bearing-num))
+   :turn-left (fn []
+                (bot x y (mod (dec bearing-num) 4)))
+   :turn-right (fn []
+                (bot x y (mod (inc bearing-num) 4)))})
+
+(defn elevator [commands]
+  (letfn
+    [(ff-open [[cur & more]]
+       #(case cur
+          :close (ff-close more)
+          :done true
+          false))
+     (ff-close [[cur & more]]
+       #(case cur
+          :open (ff-open more)
+          :up (sf-close more)
+          :done true
+          false))
+     (sf-open [[cur & more]]
+       #(case cur
+          :close (sf-close more)
+          :done true
+          false))
+     (sf-close [[cur & more]]
+       #(case cur
+          :open (sf-open more)
+          :down (ff-close more)
+          :done true
+          false))]
+    (trampoline ff-open commands)))
+
+(defmacro do-until [test-expr res-expr & clauses]
+  `(when ~test-expr
+     ~res-expr
+     ~(if (next clauses) `(do-until ~@clauses))))
+
+(defmacro def-watch [name & value]
+  `(do
+     (def ~name ~@value)
+     (add-watch #'~name
+                :re-bind
+                (fn [key# r# old-val# new-val#]
+                  (println old-val# "->" new-val#)))))
+
+(defmacro my-declare [& vars]
+  (if (seq vars)
+    `(do (def ~(first vars)) (my-declare ~@(rest vars)))))
+
+(defmacro domain [name & body]
+  `{:tag :domain
+    :attrs {:name (str '~name)}
+    :content [~@body]})
+
+(declare handle-things grok-attrs grok-props)
+
+(defmacro grouping [name & body]
+  `{:tag :grouping
+    :attrs {:name (str '~name)}
+    :content [~@(handle-things body)]})
+
+(defn handle-things [things]
+  (for [t things]
+    {:tag :thing
+     :attrs (grok-attrs (take-while (complement vector?) t))
+     :content (if-let [props (grok-props (drop-while (complement vector?) t))]
+                [props]
+                [])}))
+
+(defn grok-attrs [thing]
+  (into {:name (str (first thing))}
+        (for [a (rest thing)]
+          (cond
+            (list? a) [:isa (str (second a))]
+            (string? a) [:comment a]))))
+
+(defn grok-props [thing]
+  (if thing
+    {:tag :properties
+     :attrs nil
+     :content (vec (for [p thing]
+                     {:tag :property
+                      :attrs {:name (str (first p))}
+                      :content nil}))}))
+
+(defmacro awhen [expr & body]
+  `(let [~'it ~expr]
+     (if ~'it
+       (do ~@body))))
+
+(import [java.io BufferedReader InputStreamReader]
+        [java.net URL])
+
+(defn joc-www []
+  (-> "http://joyofclojure.com/hello"
+      URL.
+      .openStream
+      InputStreamReader.
+      BufferedReader.))
+
+(defn test-joc []
+  (let [stream (joc-www)]
+    (with-open [page stream]
+      (println (.readLine page)))))
