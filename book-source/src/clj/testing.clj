@@ -1,4 +1,5 @@
-(ns testing)
+(ns testing
+  (:import java.util.concurrent.Executors))
 
 (defrecord TreeNode [val l r])
 
@@ -134,3 +135,55 @@
       (Thread/sleep 10)
       (dosync (alter r inc)))
     :done))
+
+(def thread-pool
+  (Executors/newFixedThreadPool
+    (+ 2 (.availableProcessors (Runtime/getRuntime)))))
+
+(defn dothreads!
+  [f & {thread-count :threads
+        exec-count :times
+        :or {thread-count 1 exec-count 1}}]
+  (dotimes [t thread-count]
+    (.submit thread-pool
+             #(dotimes [_ exec-count] (f)))))
+
+(defn manipulable-memoize [f]
+  (let [cache (atom {})]
+    (with-meta
+      {:cache cache}
+      (fn [& args]
+        (or (@cache args)
+            (let [res (apply f args)]
+              (swap! cache assoc args res)
+              res))))))
+
+(defn asum-sq [arr]
+  (let [sq (amap arr i ret
+                 (* (aget arr i) (aget arr i)))]
+    (areduce sq i ret 0 (+ ret (aget sq i)))))
+
+(definterface ISliceable
+  (slice [^long s ^long e])
+  (^long sliceCount []))
+
+(defprotocol Sliceable
+  (slice [this s e])
+  (sliceCount [this]))
+
+(extend testing.ISliceable
+  Sliceable
+  {:slice (fn [this s e] (.slice this s e))
+   :sliceCount (fn [this] (.sliceCount this))})
+
+(defn calc-slice-count
+  "Formula: (n + 1)! / k!(n + 1 - k)!, where k = 2, n = (count thing)."
+  [thing]
+  (let [n (count thing)]
+    (/ (reduce * (range 3 (+ n 2)))
+       (reduce * (range 1 n)))))
+
+(extend-type String
+  Sliceable
+  (slice [this s e] (.substring this s (inc e)))
+  (sliceCount [this] (calc-slice-count this)))
