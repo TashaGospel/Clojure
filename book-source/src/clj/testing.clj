@@ -158,9 +158,9 @@
               (swap! cache assoc args res)
               res))))))
 
-(defn asum-sq [arr]
-  (let [sq (amap arr i ret
-                 (* (aget arr i) (aget arr i)))]
+(defn ^double asum-sq [^floats arr]
+  (let [^floats sq (amap arr i ret
+                         (* (aget arr i) (aget arr i)))]
     (areduce sq i ret 0 (+ ret (aget sq i)))))
 
 (definterface ISliceable
@@ -187,3 +187,61 @@
   Sliceable
   (slice [this s e] (.substring this s (inc e)))
   (sliceCount [this] (calc-slice-count this)))
+
+(defn zencat1 [x y]
+  (loop [src y res x]
+    (if src
+      (recur (next src) (conj res (first src)))
+      res)))
+
+(defn zencat2 [x y]
+  (loop [src y res (transient x)]
+    (if src
+      (recur (next src) (conj! res (first src)))
+      (persistent! res))))
+
+(defn seq1 [s]
+  (lazy-seq
+    (when-let [[x] (seq s)]
+      (cons x (seq1 (rest s))))))
+
+(def gcd (memoize
+           (fn [x y]
+             (cond
+               (> x y) (recur (- x y) y)
+               (< x y) (recur x (- y x))
+               :else x))))
+
+(set! *unchecked-math* true)
+(defn factorial-a [^long original-x]
+  (loop [res 1 x original-x]
+    (if (> x 1)
+      (recur (* res x) (dec x))
+      res)))
+(set! *unchecked-math* false)
+
+(defn factorial-b [^double original-x]
+  (loop [res 1.0 x original-x]
+    (if (> x 1.0)
+      (recur (* res x) (dec x))
+      res)))
+
+(defn factorial-c [^long original-x]
+  (loop [res 1 x original-x]
+    (if (> x 1)
+      (recur (*' res x) (dec x))
+      res)))
+
+(defn empty-range? [start end step]
+  (if (pos? step)
+    (>= start end)
+    (<= start end)))
+
+(defn lazy-range [start end step]
+  {:pre [(not (zero? step))]}
+  (lazy-seq
+    (if (empty-range? start end step)
+      nil
+      (cons start (lazy-range (+ start step)
+                              end
+                              step)))))
