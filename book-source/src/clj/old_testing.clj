@@ -206,12 +206,11 @@
 
 (defn build-contract [c]
   (let [args (first c)]
-    (list
-      (into '[f] args)
-      (apply merge
+    `([~'f ~@args]
+      ~(apply merge
              (for [con (rest c)]
                (condp = (first con)
                  'require (assoc {} :pre (vec (rest con)))
                  'ensure (assoc {} :post (vec (rest con)))
                  (throw (Exception. (str "Unknown tag " (first con)))))))
-      (list* 'f args))))
+      (~'f ~@args))))
