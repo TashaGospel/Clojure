@@ -14,6 +14,7 @@
       longest-seq
       ())))
 
+; Simpler but is O(2^n)
 (defn better-longest-inc-subseq [coll]
   (->> 
     (range 2 (inc (count coll)))
@@ -63,3 +64,24 @@
                      init (first colls))
              (rest colls))
       init)))
+
+; An undirected graph has a Eulerian path if at most two vertices have odd degree
+; and all vertices with non-zero degree belong to the same connected component.
+; This implementation assumes all vertices are in the same connected component.
+; Function connected-components should return a set of sets
+; because it's more convenient.
+(defn has-euler-path? [edges]
+  (if (empty? (remove (fn [[a b]] (= a b)) edges))
+    false
+    (>= 2
+        (count
+          (filter odd?
+                  (vals
+                    ; Should have used frequencies here.
+                    (reduce (fn [res [a b]]
+                              (if (not= a b)
+                                (assoc res
+                                       a (inc (get res a 0))
+                                       b (inc (get res b 0)))
+                                res))
+                            {} edges)))))))
