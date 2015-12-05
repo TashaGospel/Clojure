@@ -26,7 +26,6 @@
 ;
 ; Pieces are represented in the form
 ; {:position [] :color (Color.) :id 1 :rotation-id 0}
-; 
 
 (def pieces
   [{:color (java.awt.Color. 0   255 255) :id 0 :rotation-id 0}   ; I
@@ -67,6 +66,7 @@
     [[1 0] [1 1] [2 1] [2 2]]
     [[0 1] [1 0] [1 1] [2 0]]]])
 
+; Immutable
 (defn abs
   "Returns the absolute value of a number."
   [x]
@@ -120,6 +120,15 @@
     (map (fn [[x y]] [(+ x pivot-x) (+ y pivot-y)])
          (get-in rotation [id (mod (f rotation-id) 4)]))))
 
+(defn hard-drop
+  "Moves a piece to the lowest position possible."
+  [position board]
+  (loop [position position]
+    (let [moved (map (fn [[x y]] [(inc x) y]) position)]
+      (if (illegal-positions moved board)
+        position
+        (recur moved)))))
+
 (defn move
   "Moves a piece :left or :right or :down,
   or rotate it :CW or :CCW.
@@ -129,6 +138,7 @@
                 :left (map (fn [[x y]] [x (dec y)]) position)
                 :right (map (fn [[x y]] [x (inc y)]) position)
                 :down (map (fn [[x y]] [(inc x) y]) position)
+                :hard-drop (hard-drop position board)
                 (rotate piece direction board))
         f (case direction :CW inc :CCW dec identity)]
     (if (illegal-positions moved board)
@@ -148,16 +158,54 @@
            (map (fn [[x y]] [(- x 2) (+ y (quot BOARD_WIDTH 2) -2)])
                 (get-in rotation [(:id piece) 0])))))
 
+(defn complete-rows
+  "Returns the indexes of rows which are filled."
+  [board]
+  (->> (map (comp first :position) board)
+       (frequencies)
+       (filter #(= BOARD_WIDTH (second %)))
+       (map first)))
+
+(defn clear-complete-rows
+  "Returns a vector of a new board with all complete rows removed and
+  the pieces adjusted accordingly, and the number of rows removed."
+  [board]
+  (let [rows (set (complete-rows board))
+        new-board (remove #(rows (first (:position %))) board)
+        adjusted-board (map (fn [{:keys [position] :as point}]
+                              (assoc point
+                                     :position
+                                     [(+ (first position)
+                                         (count (filter #(< (first position) %) rows)))
+                                      (second position)])) new-board)]
+    [adjusted-board (count rows)]))
+
+(defn lose?
+  "Determines if the player has lost.
+  The player loses when the highest piece on the board
+  is height than the ceiling."
+  [board]
+  (when (seq board)
+    (neg? (apply min (map (comp first :position) board)))))
+
+; Mutable
 (defn update-position [piece direction board]
-  (let [moved (move @piece direction @board)]
-    (if (and (= :down direction) (= (:position moved) (:position @piece)))
-      (dosync (alter board
-                     #(apply-to-board @piece %1))
-              (ref-set piece (new-piece)))
-      (dosync
+  (dosync
+    (let [moved (move @piece direction @board)]
+      (if (and (= :down direction) (= (:position moved) (:position @piece)))
+        (do (alter board
+                   #(apply-to-board @piece %1))
+            (ref-set piece (new-piece)))
         (ref-set piece moved)))))
 
-(defn reset-game [piece board]
+(defn clear-board [board score]
+  (dosync
+    (let [[new-board rows-removed] (clear-complete-rows @board)]
+      (ref-set board new-board)
+      (alter score #(+ % rows-removed)))))
+
+(defn reset-game [piece board score]
   (dosync
     (ref-set board [])
-    (ref-set piece (new-piece))))
+    (ref-set piece (new-piece))
+    (ref-set score 0)))

@@ -20,18 +20,6 @@
                :upper 0
                :lower 1)))
 
-(facts "About move"
-       (fact
-         (move [[0 0] [0 1] [1 0] [1 1]] :left []) => [[0 0] [0 1] [1 0] [1 1]]
-         (move [[0 0] [1 0] [2 0] [2 1]] :right []) => [[0 1] [1 1] [2 1] [2 2]]
-         (let [piece [[(dec BOARD_HEIGHT) (dec BOARD_WIDTH)]
-                      [(dec BOARD_HEIGHT) BOARD_WIDTH]
-                      [BOARD_HEIGHT (dec BOARD_WIDTH)]
-                      [BOARD_HEIGHT BOARD_WIDTH]]]
-           (move piece :right []) => piece)
-         (set (rotate [[0 0] [0 1] [1 0] [1 1]] :CW [])) => #{[0 0] [0 1] [1 0] [1 1]}
-         (set (rotate [[0 1] [0 2] [1 0] [1 1]] :CCW [])) => #{[0 1] [0 2] [1 0] [1 1]}))
-
 (facts "About illegal-positions"
        (fact
          (illegal-positions [[0 0] [0 1] [1 1] [1 0]]
