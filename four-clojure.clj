@@ -16,7 +16,7 @@
 
 ; Simpler but is O(2^n)
 (defn better-longest-inc-subseq [coll]
-  (->> 
+  (->>
     (range 2 (inc (count coll)))
     (mapcat #(partition % 1 coll))
     (filter #(apply < %))
@@ -85,3 +85,31 @@
                                        b (inc (get res b 0)))
                                 res))
                             {} edges)))))))
+
+(defn tic-tac-toe [board]
+  (letfn [(win? [coll] 
+            (let [coll (distinct coll)]
+              (and (= 1 (count coll))
+                   (not= :e (first coll))
+                   (first coll))))]
+    (some identity
+      (apply list
+             (win? (for [i (range 3)] (get-in board [i i])))
+             (win? (for [i (range 3)] (get-in board [i (- 2 i)])))
+             (flatten (for [i (range 3)] [(win? (map #(nth % i) board)) (win? (nth board i))]))))))
+
+(defn levenshtein-distance [c1 c2]
+  (let [n (inc (count c1)) m (inc (count c2))
+        a (transient (vec (repeat n (vec (repeat m 0)))))]
+    (dotimes [i n] (assoc! a i (assoc (get a i) 0 i)))
+    (assoc! a 0 (vec (range m)))
+    (dotimes [i n]
+      (dotimes [j m]
+        (when (and (pos? i) (pos? j))
+          (assoc! a i (assoc (get a i) j
+                             (if (= (get c1 (dec i)) (get c2 (dec j)))
+                               (get-in a [(dec i) (dec j)])
+                               (inc (min (get-in a [(dec i) j])
+                                         (get-in a [i (dec j)])
+                                         (get-in a [(dec i) (dec j)])))))))))
+    (get-in a [(dec n) (dec m)])))
