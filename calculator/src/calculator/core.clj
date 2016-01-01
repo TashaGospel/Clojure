@@ -15,8 +15,14 @@
               (drop-while-native pred (pop coll))
               coll)))
 
+(defn div [a b]
+  (/ (float a) b))
+
 (defn power [base expo]
   (Math/pow base expo))
+
+(defn expo-10 [base expo]
+  (* base (power 10 expo)))
 
 (defn to-int [x]
   (- (int x) (int \0)))
@@ -24,16 +30,19 @@
 (defn split-up
   "Splits a string into strings of decimals and non-decimals."
   [s]
-  (re-seq #"\d+\.?\d*|\.\d+|\D" s))
+  (re-seq #"\d+\.?\d*N?M?|\.\d+N?M?|\D" s))
 
-(def operators {"+" + "-" - "*" * "/" / "^" power ; The pentalogy of basic operators
+(def operators {"+" + "-" - "*" * "/" div "^" power ; The pentalogy of basic operators
+                "E" expo-10
                 "%" [100 "/"]
                 "²" [2 "^"]
                 "√" [1/2 "^"]})
 
-(def precedence {"+" 2 "-" 2 "*" 3 "/" 3 "^" 4 "%" 5 "²" 5 "√" 5})
+(def precedence {"+" 2 "-" 2 "*" 3 "/" 3 "^" 4
+                 "%" 5 "²" 5 "√" 5 "E" 5})
 
-(def associativity {"+" :left "-" :left "*" :left "/" :left "^" :right "%" :left "²" :left "√" :right})
+(def associativity {"+" :left "-" :left "*" :left "/" :left "^" :right
+                    "%" :left "²" :left "√" :right "E" :left})
 
 (defn infix-to-postfix
   "Turns a collection (usually string) of infix notation to
