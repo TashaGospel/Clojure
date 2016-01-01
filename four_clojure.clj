@@ -98,7 +98,10 @@
              (win? (for [i (range 3)] (get-in board [i (- 2 i)])))
              (flatten (for [i (range 3)] [(win? (map #(nth % i) board)) (win? (nth board i))]))))))
 
-(defn levenshtein-distance [c1 c2]
+(defn levenshtein-distance
+  "This is what happens when you try to force a
+  procedural approach onto a functional language."
+  [c1 c2]
   (let [n (inc (count c1)) m (inc (count c2))
         a (transient (vec (repeat n (vec (repeat m 0)))))]
     (dotimes [i n] (assoc! a i (assoc (get a i) 0 i)))
@@ -113,3 +116,11 @@
                                          (get-in a [i (dec j)])
                                          (get-in a [(dec i) (dec j)])))))))))
     (get-in a [(dec n) (dec m)])))
+    
+(defn all-anagrams [coll]
+  (letfn [(anagrams? [a b] (= (frequencies a) (frequencies b)))]
+    (loop [[x & more :as coll] coll res #{}]
+      (if more
+        (let [matches (filter #(anagrams? x %) coll)]
+          (recur (remove #(anagrams? x %) coll) (if (< 1 (count matches)) (conj res (set matches)) res)))
+        res))))
